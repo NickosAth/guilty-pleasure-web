@@ -1,6 +1,7 @@
 import { auth, db } from './firebase';
 
 import {
+  type ActionCodeSettings,
   createUserWithEmailAndPassword,
   deleteUser,
   sendEmailVerification,
@@ -32,6 +33,13 @@ import type {
 } from '../types';
 
 export const ADMIN_EMAIL = 'admin@guiltypleasure.gr';
+
+function verificationSettings(): ActionCodeSettings {
+  return {
+    url: window.location.origin,
+    handleCodeInApp: false,
+  };
+}
 
 /* ======================================================
    Error helpers
@@ -230,6 +238,11 @@ export async function login(
   ) {
     const user = credential.user;
 
+    await sendEmailVerification(
+      user,
+      verificationSettings()
+    );
+
     await signOut(auth);
 
     const error =
@@ -319,7 +332,8 @@ export async function register(
     );
 
     await sendEmailVerification(
-      credential.user
+      credential.user,
+      verificationSettings()
     );
   } catch (error: unknown) {
     try {

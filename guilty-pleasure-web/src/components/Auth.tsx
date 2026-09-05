@@ -10,7 +10,7 @@ function authErrorMessage(error: unknown) {
 			: String(error);
 
 	switch (code) {
-		case 'unverified': return 'Πρέπει να επιβεβαιώσετε το email σας πριν συνδεθείτε.';
+		case 'unverified': return 'Σας στείλαμε νέο email επιβεβαίωσης. Ανοίξτε μόνο το πιο πρόσφατο link και μετά συνδεθείτε.';
 		case 'username-already-in-use': return 'Το username χρησιμοποιείται ήδη.';
 		case 'auth/email-already-in-use':
 		case 'email-already-in-use': return 'Το email χρησιμοποιείται ήδη.';
