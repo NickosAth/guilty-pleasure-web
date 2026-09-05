@@ -61,6 +61,12 @@ function EditAppointment({appointment,appointments,slots,isAdmin,onClose,onSaved
   const [busy,setBusy]=useState(false);
   const times=availableTimes(date,appointment.durationMinutes,slots,appointments,false,appointment.id);
 
+  const changeDate=(nextDate:Date)=>{
+    const nextTimes=availableTimes(nextDate,appointment.durationMinutes,slots,appointments,false,appointment.id);
+    setDate(nextDate);
+    setTime(nextTimes.length?`${String(nextTimes[0].h).padStart(2,'0')}:${String(nextTimes[0].m).padStart(2,'0')}`:'');
+  };
+
   useEffect(()=>{
     const selectedTimeIsAvailable=times.some(item=>`${String(item.h).padStart(2,'0')}:${String(item.m).padStart(2,'0')}`===time);
     if(!selectedTimeIsAvailable)setTime(times.length?`${String(times[0].h).padStart(2,'0')}:${String(times[0].m).padStart(2,'0')}`:'');
@@ -94,7 +100,7 @@ function EditAppointment({appointment,appointments,slots,isAdmin,onClose,onSaved
     <div className="reschedule-body">
       <section className="reschedule-section">
         <span className="reschedule-label">Νέα ημερομηνία</span>
-        <Calendar value={date} onChange={setDate}/>
+        <Calendar value={date} onChange={changeDate}/>
         <div className="reschedule-date-preview">{date.toLocaleDateString('el-GR',{weekday:'long',day:'numeric',month:'long'})}</div>
       </section>
       <section className="reschedule-section reschedule-time-section">
