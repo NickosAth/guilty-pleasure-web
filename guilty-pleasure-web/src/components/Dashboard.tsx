@@ -1,10 +1,13 @@
 import {useEffect,useState} from 'react';
-import {CalendarDays,Clock3,History,LogOut,UserRound,Plus,Scissors,Euro,ChevronRight,UsersRoundIcon} from 'lucide-react';
-import {auth,loadAppointments,loadSlots} from '../lib/api';
+import {CalendarDays,Clock3,Edit3,History,LogOut,UserRound,Plus,Scissors,Euro,ChevronRight,UsersRoundIcon,XCircle} from 'lucide-react';
+import {auth,deleteAppointment,loadAppointments,loadSlots} from '../lib/api';
 import {SERVICES} from '../lib/services';
 import type {Appointment,BookedSlot} from '../types';
 import Calendar from './Calendar';
 import AppointmentModal from './AppointmentModal';
+import Modal from './Modal';
+import {EditAppointment} from './History';
+import {adminCancellationEmail,cancellationEmail} from '../lib/email';
 
 function dayEq(a:Date,b:Date){return a.toDateString()===b.toDateString();}
 function money(amount:number){return `${amount.toFixed(2)} €`;}
@@ -23,6 +26,8 @@ export default function Dashboard({isAdmin,username,onLogout,onProfile,onAccount
   const [appointments,setAppointments]=useState<Appointment[]>([]);
   const [slots,setSlots]=useState<BookedSlot[]>([]);
   const [showNew,setShowNew]=useState(false);
+  const [selectedAppointment,setSelectedAppointment]=useState<Appointment|null>(null);
+  const [editingAppointment,setEditingAppointment]=useState<Appointment|null>(null);
 
   const refresh=async()=>{
     const [nextAppointments,nextSlots]=await Promise.all([
@@ -49,6 +54,16 @@ export default function Dashboard({isAdmin,username,onLogout,onProfile,onAccount
   const add=(appointment:Appointment)=>{
     setAppointments(items=>[...items,appointment]);
     setSlots(items=>[...items,{id:appointment.id,startAt:appointment.dateTime,endAt:new Date(appointment.dateTime.getTime()+appointment.durationMinutes*60000)}]);
+  };
+
+  const cancelAppointment=async(appointment:Appointment)=>{
+    try{
+      if(isAdmin)await cancellationEmail('',appointment.clientName,appointment,true);
+      else await adminCancellationEmail(appointment);
+    }catch{}
+    await deleteAppointment(appointment.id);
+    setSelectedAppointment(null);
+    await refresh();
   };
 
   return <div className="app-shell">
@@ -87,7 +102,7 @@ export default function Dashboard({isAdmin,username,onLogout,onProfile,onAccount
             <div><span className="eyebrow">ΕΠΙΛΕΓΜΕΝΗ ΗΜΕΡΑ</span><h2>{selected.toLocaleDateString('el-GR',{day:'numeric',month:'long',year:'numeric'})}</h2></div>
             {isAdmin&&<div className="day-revenue"><span>Τζίρος</span><strong>{money(revenue(dayAppointments))}</strong></div>}
           </div>
-          {dayAppointments.length?<div className="appointments-list">{dayAppointments.map(appointment=><div className="appointment-card" style={{'--accent':serviceColor(appointment.service)} as React.CSSProperties} key={appointment.id}><div className="appt-main"><div className="appt-time"><Clock3/><strong>{appointment.dateTime.toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'})}</strong></div><div><h3>{appointment.clientName}</h3><span>{appointment.service} · {appointment.durationMinutes} λ</span></div></div><strong className="price">{money(appointment.price)}</strong></div>)}</div>:<div className="empty"><CalendarDays/><p>Δεν υπάρχουν ραντεβού για αυτήν την ημέρα.</p></div>}
+          {dayAppointments.length?<div className="appointments-list">{dayAppointments.map(appointment=><button type="button" className="appointment-card" style={{'--accent':serviceColor(appointment.service)} as React.CSSProperties} key={appointment.id} onClick={()=>setSelectedAppointment(appointment)}><div className="appt-main"><div className="appt-time"><Clock3/><strong>{appointment.dateTime.toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'})}</strong></div><div><h3>{appointment.clientName}</h3><span>{appointment.service} · {appointment.durationMinutes} λ</span></div></div><strong className="price">{money(appointment.price)}</strong></button>)}</div>:<div className="empty"><CalendarDays/><p>Δεν υπάρχουν ραντεβού για αυτήν την ημέρα.</p></div>}
         </section>
       </div>
 
@@ -97,5 +112,7 @@ export default function Dashboard({isAdmin,username,onLogout,onProfile,onAccount
     </main>
 
     {showNew&&<AppointmentModal date={selected} isAdmin={isAdmin} username={username} appointments={appointments} slots={slots} onClose={()=>setShowNew(false)} onSaved={add}/>} 
+    {selectedAppointment&&<Modal title="Διαχείριση ραντεβού" onClose={()=>setSelectedAppointment(null)}><div className="appointment-actions"><div><span className="service-badge" style={{background:serviceColor(selectedAppointment.service)}}>{selectedAppointment.service}</span><h3>{selectedAppointment.clientName}</h3><p>{selectedAppointment.dateTime.toLocaleDateString('el-GR',{weekday:'long',day:'numeric',month:'long'})} · {selectedAppointment.dateTime.toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'})}</p></div><button className="secondary" onClick={()=>{setEditingAppointment(selectedAppointment);setSelectedAppointment(null);}}><Edit3/> Αλλαγή ραντεβού</button><button className="danger-outline" onClick={()=>cancelAppointment(selectedAppointment)}><XCircle/> Ακύρωση ραντεβού</button></div></Modal>}
+    {editingAppointment&&<EditAppointment appointment={editingAppointment} appointments={appointments} slots={slots} isAdmin={isAdmin} onClose={()=>setEditingAppointment(null)} onSaved={async()=>{setEditingAppointment(null);await refresh();}}/>}
   </div>;
 }

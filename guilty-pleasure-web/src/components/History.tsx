@@ -55,7 +55,7 @@ export default function History({isAdmin,onClose,onChanged}:{isAdmin:boolean;onC
   </Modal>;
 }
 
-function EditAppointment({
+export function EditAppointment({
   appointment,
   appointments,
   slots,

@@ -1073,6 +1073,9 @@ label > span {
 
 .appointment-card {
   --accent: var(--gold);
+  width: 100%;
+  color: inherit;
+  text-align: left;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1088,6 +1091,45 @@ label > span {
 .appointment-card:hover {
   background: rgba(255, 255, 255, 0.055);
   transform: translateX(2px);
+  cursor: pointer;
+}
+
+.appointment-card:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.appointment-actions {
+  padding: 24px 26px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.appointment-actions > div {
+  padding-bottom: 18px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.appointment-actions .service-badge {
+  margin-bottom: 12px;
+}
+
+.appointment-actions h3 {
+  font-size: 21px;
+}
+
+.appointment-actions p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 13.5px;
+  text-transform: capitalize;
+}
+
+.appointment-actions button {
+  width: 100%;
+  min-height: 50px;
 }
 
 .appt-main {
