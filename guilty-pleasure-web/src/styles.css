@@ -679,8 +679,9 @@ label > span {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 26px;
+  padding: 16px 26px;
   border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .reschedule-header > div {
@@ -692,7 +693,7 @@ label > span {
 
 .reschedule-header strong {
   font-family: var(--display-font);
-  font-size: 20px;
+  font-size: 18px;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
@@ -707,18 +708,11 @@ label > span {
 }
 
 .reschedule-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(190px, 0.8fr);
-  gap: 0;
+  padding: 4px 26px 8px;
 }
 
 .reschedule-section {
-  min-height: 275px;
-  padding: 22px 26px 24px;
-}
-
-.reschedule-date-section {
-  border-right: 1px solid var(--border);
+  padding: 22px 0;
 }
 
 .reschedule-label {
@@ -734,8 +728,15 @@ label > span {
   margin-top: 14px;
 }
 
+.reschedule-section .calendar .cal-grid {
+  grid-auto-rows: 42px;
+}
+
 .reschedule-date-preview {
-  margin-top: 14px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border-left: 2px solid var(--gold);
+  background: rgba(var(--gold-rgb), 0.07);
   color: var(--gold-2);
   font-size: 13px;
   font-weight: 700;
@@ -743,20 +744,18 @@ label > span {
 }
 
 .reschedule-time-section {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
-.reschedule-time-section > svg {
-  width: 26px;
-  height: 26px;
-  margin: 26px 0 14px;
-  color: var(--gold);
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
 }
 
 .reschedule-time-section .dropdown {
-  margin-top: 0;
+  margin-top: 12px;
+}
+
+.reschedule-time-section .dropdown-trigger {
+  height: 56px;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .availability-note {
@@ -789,17 +788,11 @@ label > span {
   }
 
   .reschedule-body {
-    grid-template-columns: 1fr;
-  }
-
-  .reschedule-date-section {
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
+    padding: 4px 18px 8px;
   }
 
   .reschedule-section {
-    min-height: auto;
-    padding: 20px 18px;
+    padding: 20px 0;
   }
 }
 

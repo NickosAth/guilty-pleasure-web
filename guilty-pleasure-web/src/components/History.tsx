@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import {CalendarClock,Clock3,Edit3,Trash2,XCircle} from 'lucide-react';
+import {CalendarClock,Edit3,Trash2,XCircle} from 'lucide-react';
 import {auth,deleteAppointment,loadAppointments,loadSlots,saveAppointments} from '../lib/api';
 import {SERVICES,availableTimes} from '../lib/services';
 import type {Appointment,BookedSlot} from '../types';
@@ -59,7 +59,7 @@ function EditAppointment({appointment,appointments,slots,isAdmin,onClose,onSaved
   const [date,setDate]=useState(appointment.dateTime);
   const [time,setTime]=useState(appointment.dateTime.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
   const [busy,setBusy]=useState(false);
-  const times=availableTimes(date,appointment.durationMinutes,slots,appointments,isAdmin,appointment.id);
+  const times=availableTimes(date,appointment.durationMinutes,slots,appointments,false,appointment.id);
 
   useEffect(()=>{
     const selectedTimeIsAvailable=times.some(item=>`${String(item.h).padStart(2,'0')}:${String(item.m).padStart(2,'0')}`===time);
@@ -92,14 +92,13 @@ function EditAppointment({appointment,appointments,slots,isAdmin,onClose,onSaved
       <span>{appointment.durationMinutes} λεπτά · {appointment.price.toFixed(2)} €</span>
     </div>
     <div className="reschedule-body">
-      <section className="reschedule-section reschedule-date-section">
-        <span className="reschedule-label">Επίλεξε νέα ημερομηνία</span>
+      <section className="reschedule-section">
+        <span className="reschedule-label">Νέα ημερομηνία</span>
         <Calendar value={date} onChange={setDate}/>
         <div className="reschedule-date-preview">{date.toLocaleDateString('el-GR',{weekday:'long',day:'numeric',month:'long'})}</div>
       </section>
       <section className="reschedule-section reschedule-time-section">
         <span className="reschedule-label">Διαθέσιμη ώρα</span>
-        <Clock3/>
         <Dropdown value={time} onChange={setTime} disabled={!times.length} options={times.map(item=>{const value=`${String(item.h).padStart(2,'0')}:${String(item.m).padStart(2,'0')}`;return {value,label:value}})}/>
         {!times.length&&<small className="availability-note">Δεν υπάρχουν διαθέσιμες ώρες για αυτήν την ημέρα.</small>}
       </section>
