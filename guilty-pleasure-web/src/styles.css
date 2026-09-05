@@ -1725,10 +1725,12 @@ label > span {
   .topbar {
     gap: 10px;
     padding: 12px 14px;
+    align-items: center;
   }
 
   .top-brand {
     gap: 10px;
+    flex: 1 1 0;
   }
 
   .mini-logo {
@@ -1738,8 +1740,12 @@ label > span {
   }
 
   .top-brand strong {
-    max-width: 150px;
-    font-size: 14px;
+    max-width: none;
+    font-size: 13.5px;
+    line-height: 1.25;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .top-brand span {
