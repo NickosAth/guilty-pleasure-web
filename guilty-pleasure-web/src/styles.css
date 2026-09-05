@@ -1383,7 +1383,7 @@ label > span {
   pointer-events: none;
 }
 
-.cal-day:not(.empty):not(.disabled):hover {
+.cal-day:not(.empty):not(.disabled):not(.selected):hover {
   background: rgba(255, 255, 255, 0.06);
 }
 
