@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+.netlify/
+.firebase/
+firebase-debug.log
+firestore-debug.log
+
+# Firebase service-account credentials and local editor files
+service-account*.json
+*.firebase-adminsdk-*.json
+.vscode/
