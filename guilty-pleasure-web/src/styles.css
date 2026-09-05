@@ -1717,9 +1717,145 @@ label > span {
    ========================================================================== */
 
 @media (max-width: 640px) {
-  .topbar nav button span,
+  .topbar {
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .top-brand {
+    gap: 10px;
+  }
+
+  .mini-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+
+  .top-brand strong {
+    max-width: 150px;
+    font-size: 14px;
+  }
+
   .top-brand span {
     display: none;
+  }
+
+  .topbar nav {
+    gap: 5px;
+  }
+
+  .topbar nav button {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+
+  .auth-actions {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .auth-actions .link,
+  .auth-actions .link.accent {
+    width: 100%;
+    justify-content: center;
+    margin-left: 0;
+    white-space: normal;
+  }
+
+  .dashboard {
+    padding: 18px 14px 28px;
+    gap: 18px;
+  }
+
+  .hero-row {
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .hero-row h1 {
+    font-size: 29px;
+  }
+
+  .hero-row p {
+    font-size: 13.5px;
+  }
+
+  .new-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .tomorrow {
+    padding: 13px 14px;
+  }
+
+  .tomorrow strong {
+    font-size: 12.5px;
+    text-align: right;
+  }
+
+  .dashboard-grid {
+    gap: 14px;
+  }
+
+  .panel,
+  .calendar-panel {
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .section-title {
+    margin-bottom: 14px;
+  }
+
+  .section-title h2 {
+    font-size: 18px;
+  }
+
+  .appointment-card {
+    min-height: 76px;
+    padding: 12px 13px;
+    gap: 10px;
+  }
+
+  .appt-main {
+    gap: 11px;
+  }
+
+  .appt-main h3 {
+    font-size: 14px;
+  }
+
+  .appt-main span {
+    display: block;
+    line-height: 1.35;
+  }
+
+  .appointment-card .price {
+    font-size: 14px;
+  }
+
+  .modal-backdrop {
+    align-items: center;
+    padding: 12px;
+  }
+
+  .modal,
+  .modal-wide {
+    width: min(100%, 540px);
+    max-height: calc(100dvh - 24px);
+    border-radius: 20px;
+  }
+
+  .modal-head {
+    padding: 17px 18px;
+  }
+
+  .modal-head h2 {
+    font-size: 19px;
   }
 
   .modal-form,
@@ -1730,5 +1866,45 @@ label > span {
 
   .edit-grid {
     padding: 18px 18px 0;
+  }
+
+  .appointment-date-picker {
+    padding: 14px;
+  }
+
+  .modal-actions,
+  .modal > .modal-actions {
+    display: grid;
+    grid-template-columns: 1fr 1.25fr;
+    gap: 9px;
+    padding: 16px 18px 18px;
+  }
+
+  .modal-actions .primary,
+  .modal-actions .secondary {
+    min-height: 50px;
+    padding: 10px 12px;
+  }
+
+  .appointment-actions {
+    padding: 20px 18px 22px;
+  }
+
+  .appointment-actions h3 {
+    font-size: 20px;
+  }
+
+  .history-card {
+    align-items: flex-start;
+    padding: 14px;
+  }
+
+  .history-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .stats > div {
+    padding: 16px;
   }
 }
