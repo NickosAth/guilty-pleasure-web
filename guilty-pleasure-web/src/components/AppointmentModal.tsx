@@ -4,6 +4,7 @@ import { SERVICES, availableTimes } from '../lib/services';
 import type { Appointment, BookedSlot, UserProfile } from '../types';
 import Modal from './Modal';
 import Dropdown from './Dropdown';
+import Calendar from './Calendar';
 
 type Props = {
   date: Date;
@@ -24,6 +25,7 @@ export default function AppointmentModal({
   onClose,
   onSaved,
 }: Props) {
+  const [selectedDate, setSelectedDate] = useState(date);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [client, setClient] = useState(isAdmin ? '' : username);
   const [userUid, setUserUid] = useState<string | undefined>();
@@ -53,13 +55,13 @@ export default function AppointmentModal({
     if (!service) return [];
 
     return availableTimes(
-      date,
+      selectedDate,
       service.duration,
       slots,
       appointments,
-      isAdmin
+      false
     );
-  }, [date, service, slots, appointments, isAdmin]);
+  }, [selectedDate, service, slots, appointments]);
 
   useEffect(() => {
     const firstTime = times[0];
@@ -135,9 +137,9 @@ export default function AppointmentModal({
       const [h, m] = time.split(':').map(Number);
 
       const dateTime = new Date(
-        date.getFullYear(),
-        date.getMonth(),
-        date.getDate(),
+        selectedDate.getFullYear(),
+        selectedDate.getMonth(),
+        selectedDate.getDate(),
         h,
         m,
         0,
@@ -240,6 +242,12 @@ export default function AppointmentModal({
             }))}
           />
         </label>
+
+        <section className="appointment-date-picker">
+          <span>Ημερομηνία ραντεβού</span>
+          <Calendar value={selectedDate} onChange={setSelectedDate} />
+          <strong>{selectedDate.toLocaleDateString('el-GR',{weekday:'long',day:'numeric',month:'long'})}</strong>
+        </section>
 
         <label>
           Διαθέσιμη ώρα
