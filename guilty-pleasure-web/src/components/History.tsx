@@ -55,63 +55,199 @@ export default function History({isAdmin,onClose,onChanged}:{isAdmin:boolean;onC
   </Modal>;
 }
 
-function EditAppointment({appointment,appointments,slots,isAdmin,onClose,onSaved}:{appointment:Appointment;appointments:Appointment[];slots:BookedSlot[];isAdmin:boolean;onClose:()=>void;onSaved:()=>void}){
-  const [date,setDate]=useState(appointment.dateTime);
-  const [time,setTime]=useState(appointment.dateTime.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
-  const [busy,setBusy]=useState(false);
-  const times=availableTimes(date,appointment.durationMinutes,slots,appointments,false,appointment.id);
+function EditAppointment({
+  appointment,
+  appointments,
+  slots,
+  isAdmin,
+  onClose,
+  onSaved,
+}: {
+  appointment: Appointment;
+  appointments: Appointment[];
+  slots: BookedSlot[];
+  isAdmin: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [date, setDate] = useState(appointment.dateTime);
 
-  const changeDate=(nextDate:Date)=>{
-    const nextTimes=availableTimes(nextDate,appointment.durationMinutes,slots,appointments,false,appointment.id);
+  const [time, setTime] = useState(
+    appointment.dateTime.toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  );
+
+  const [busy, setBusy] = useState(false);
+
+  const times = availableTimes(
+    date,
+    appointment.durationMinutes,
+    slots,
+    appointments,
+    false,
+    appointment.id
+  );
+
+  const formatTime = (h: number, m: number) =>
+    `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+
+  const changeDate = (nextDate: Date) => {
+    const nextTimes = availableTimes(
+      nextDate,
+      appointment.durationMinutes,
+      slots,
+      appointments,
+      false,
+      appointment.id
+    );
+
     setDate(nextDate);
-    setTime(nextTimes.length?`${String(nextTimes[0].h).padStart(2,'0')}:${String(nextTimes[0].m).padStart(2,'0')}`:'');
+
+    // When changing to another day:
+    // automatically select the FIRST available time.
+    if (nextTimes.length > 0) {
+      setTime(formatTime(nextTimes[0].h, nextTimes[0].m));
+    } else {
+      // No available times that day
+      setTime('');
+    }
   };
 
-  useEffect(()=>{
-    const selectedTimeIsAvailable=times.some(item=>`${String(item.h).padStart(2,'0')}:${String(item.m).padStart(2,'0')}`===time);
-    if(!selectedTimeIsAvailable)setTime(times.length?`${String(times[0].h).padStart(2,'0')}:${String(times[0].m).padStart(2,'0')}`:'');
-  },[date,times,time]);
+  const save = async () => {
+    if (!time) return;
 
-  const save=async()=>{
-    if(!time)return;
     setBusy(true);
-    const [hours,minutes]=time.split(':').map(Number);
-    const dateTime=new Date(date.getFullYear(),date.getMonth(),date.getDate(),hours,minutes);
-    const updatedAppointment={...appointment,dateTime};
-    try{
+
+    const [hours, minutes] = time.split(':').map(Number);
+
+    const dateTime = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      hours,
+      minutes
+    );
+
+    const updatedAppointment = {
+      ...appointment,
+      dateTime,
+    };
+
+    try {
       await saveAppointments([updatedAppointment]);
-      if(isAdmin&&updatedAppointment.ownerUid){
-        try{
-          await rescheduledEmail('',updatedAppointment.clientName,updatedAppointment);
-        }catch{}
+
+      if (isAdmin && updatedAppointment.ownerUid) {
+        try {
+          await rescheduledEmail(
+            '',
+            updatedAppointment.clientName,
+            updatedAppointment
+          );
+        } catch {}
       }
+
       onSaved();
-    }finally{
+    } finally {
       setBusy(false);
     }
   };
 
-  const selectedService=SERVICES.find(service=>service.name===appointment.service);
-  return <Modal title="Αλλαγή ραντεβού" onClose={onClose}>
-    <div className="reschedule-header">
-      <div><span className="service-badge" style={{background:selectedService?.color||'#777'}}>{appointment.service}</span><strong>{appointment.clientName}</strong></div>
-      <span>{appointment.durationMinutes} λεπτά · {appointment.price.toFixed(2)} €</span>
-    </div>
-    <div className="reschedule-body">
-      <section className="reschedule-section">
-        <span className="reschedule-label">Νέα ημερομηνία</span>
-        <Calendar value={date} onChange={changeDate}/>
-        <div className="reschedule-date-preview">{date.toLocaleDateString('el-GR',{weekday:'long',day:'numeric',month:'long'})}</div>
-      </section>
-      <section className="reschedule-section reschedule-time-section">
-        <span className="reschedule-label">Διαθέσιμη ώρα</span>
-        <Dropdown value={time} onChange={setTime} disabled={!times.length} options={times.map(item=>{const value=`${String(item.h).padStart(2,'0')}:${String(item.m).padStart(2,'0')}`;return {value,label:value}})}/>
-        {!times.length&&<small className="availability-note">Δεν υπάρχουν διαθέσιμες ώρες για αυτήν την ημέρα.</small>}
-      </section>
-    </div>
-    <div className="modal-actions">
-      <button className="secondary" onClick={onClose} disabled={busy}>Ακύρωση</button>
-      <button className="primary" disabled={!time||busy} onClick={save}>{busy?<span className="spinner dark"/>:'Αποθήκευση αλλαγών'}</button>
-    </div>
-  </Modal>;
+  const selectedService = SERVICES.find(
+    service => service.name === appointment.service
+  );
+
+  return (
+    <Modal title="Αλλαγή ραντεβού" onClose={onClose}>
+      <div className="reschedule-header">
+        <div>
+          <span
+            className="service-badge"
+            style={{
+              background: selectedService?.color || '#777',
+            }}
+          >
+            {appointment.service}
+          </span>
+
+          <strong>{appointment.clientName}</strong>
+        </div>
+
+        <span>
+          {appointment.durationMinutes} λεπτά ·{' '}
+          {appointment.price.toFixed(2)} €
+        </span>
+      </div>
+
+      <div className="reschedule-body">
+        <section className="reschedule-section">
+          <span className="reschedule-label">
+            Νέα ημερομηνία
+          </span>
+
+          <Calendar
+            value={date}
+            onChange={changeDate}
+          />
+
+          <div className="reschedule-date-preview">
+            {date.toLocaleDateString('el-GR', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+            })}
+          </div>
+        </section>
+
+        <section className="reschedule-section reschedule-time-section">
+          <span className="reschedule-label">
+            Διαθέσιμη ώρα
+          </span>
+
+          <Dropdown
+            value={time}
+            onChange={setTime}
+            disabled={!times.length}
+            options={times.map(item => {
+              const value = formatTime(item.h, item.m);
+
+              return {
+                value,
+                label: value,
+              };
+            })}
+          />
+
+          {!times.length && (
+            <small className="availability-note">
+              Δεν υπάρχουν διαθέσιμες ώρες για αυτήν την ημέρα.
+            </small>
+          )}
+        </section>
+      </div>
+
+      <div className="modal-actions">
+        <button
+          className="secondary"
+          onClick={onClose}
+          disabled={busy}
+        >
+          Ακύρωση
+        </button>
+
+        <button
+          className="primary"
+          disabled={!time || busy}
+          onClick={save}
+        >
+          {busy ? (
+            <span className="spinner dark" />
+          ) : (
+            'Αποθήκευση αλλαγών'
+          )}
+        </button>
+      </div>
+    </Modal>
+  );
 }
