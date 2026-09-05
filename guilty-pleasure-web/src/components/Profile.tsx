@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   auth,
   changePassword,
+  deleteOwnerAppointments,
   deleteUser,
   getProfile,
   removeProfile,
@@ -253,6 +254,10 @@ export default function Profile({
     setError('');
 
     try {
+      await deleteOwnerAppointments(
+        auth.currentUser.uid
+      );
+
       await removeProfile(
         auth.currentUser.uid,
         username

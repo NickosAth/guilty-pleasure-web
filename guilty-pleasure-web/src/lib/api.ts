@@ -166,18 +166,25 @@ export async function removeProfile(
   username: string
 ) {
   const batch = writeBatch(db);
+  const usernameKey =
+    username.trim().toLowerCase();
+  const usernameRecord = await resolveUsername(
+    usernameKey
+  );
 
   batch.delete(
     doc(db, 'users', uid)
   );
 
-  batch.delete(
-    doc(
-      db,
-      'usernames',
-      username.trim().toLowerCase()
-    )
-  );
+  if (usernameRecord?.uid === uid) {
+    batch.delete(
+      doc(
+        db,
+        'usernames',
+        usernameKey
+      )
+    );
+  }
 
   await batch.commit();
 }
