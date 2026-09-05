@@ -1,6 +1,6 @@
 import {useEffect,useState} from 'react';
 import {onAuthStateChanged} from 'firebase/auth';
-import {auth,signOut} from './lib/api';
+import {auth,getProfile,signOut} from './lib/api';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import Profile from './components/Profile';
@@ -17,7 +17,10 @@ export default function App(){
 	useEffect(()=>onAuthStateChanged(auth,async user=>{
 		if(!user){setSession(null);return;}
 		const isAdmin=user.email?.toLowerCase()==='admin@guiltypleasure.gr';
-		if(user.emailVerified||isAdmin)setSession(current=>current||{isAdmin,username:user.email?.split('@')[0]||''});
+		if(!user.emailVerified&&!isAdmin)return;
+		const profile=await getProfile(user.uid);
+		const username=String(profile?.username||user.email?.split('@')[0]||'');
+		setSession(current=>current||{isAdmin,username});
 	}),[]);
 	if(!session)return <Auth onLogin={setSession}/>;
 	return <><Dashboard key={dashboardVersion} {...session} onLogout={async()=>{await signOut(auth);setSession(null)}} onProfile={()=>setOverlay('profile')} onAccounts={()=>setOverlay('accounts')} onHistory={()=>setOverlay('history')}/>{overlay==='profile'&&<Profile username={session.username} isAdmin={session.isAdmin} onClose={()=>setOverlay(null)} onDeleted={()=>{setOverlay(null);setSession(null)}}/>}{overlay==='accounts'&&<Accounts onClose={()=>setOverlay(null)}/>} {overlay==='history'&&<History isAdmin={session.isAdmin} onClose={()=>setOverlay(null)} onChanged={()=>setDashboardVersion(version=>version+1)}/>}</>;
