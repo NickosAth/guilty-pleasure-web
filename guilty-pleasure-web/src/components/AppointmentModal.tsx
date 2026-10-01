@@ -16,6 +16,45 @@ type Props = {
   onSaved: (a: Appointment) => void;
 };
 
+type RepeatFrequency = 'weekly' | 'monthly';
+
+function getRepeatDates(firstDate: Date, frequency: RepeatFrequency) {
+  const endDate = new Date(firstDate);
+  endDate.setFullYear(endDate.getFullYear() + 1);
+
+  const dates = [firstDate];
+  for (let occurrence = 1; ; occurrence++) {
+    let nextDate: Date;
+
+    if (frequency === 'weekly') {
+      nextDate = new Date(firstDate);
+      nextDate.setDate(firstDate.getDate() + occurrence * 7);
+    } else {
+      const targetMonth = new Date(
+        firstDate.getFullYear(),
+        firstDate.getMonth() + occurrence,
+        1
+      );
+      const day = Math.min(
+        firstDate.getDate(),
+        new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0).getDate()
+      );
+      nextDate = new Date(
+        targetMonth.getFullYear(),
+        targetMonth.getMonth(),
+        day,
+        firstDate.getHours(),
+        firstDate.getMinutes()
+      );
+    }
+
+    if (nextDate >= endDate) break;
+    dates.push(nextDate);
+  }
+
+  return dates;
+}
+
 export default function AppointmentModal({
   date,
   isAdmin,
@@ -31,6 +70,8 @@ export default function AppointmentModal({
   const [userUid, setUserUid] = useState<string | undefined>();
   const [serviceName, setServiceName] = useState(SERVICES[0]?.name ?? '');
   const [time, setTime] = useState('');
+  const [repeat, setRepeat] = useState(false);
+  const [repeatFrequency, setRepeatFrequency] = useState<RepeatFrequency>('weekly');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -59,9 +100,9 @@ export default function AppointmentModal({
       service.duration,
       slots,
       appointments,
-      false
+      isAdmin
     );
-  }, [selectedDate, service, slots, appointments]);
+  }, [selectedDate, service, slots, appointments, isAdmin]);
 
   useEffect(() => {
     const firstTime = times[0];
@@ -146,34 +187,60 @@ export default function AppointmentModal({
         0
       );
 
-      const available = await slotAvailable(
-        dateTime,
-        service.duration
-      );
+      const repeatDates = repeat
+        ? getRepeatDates(dateTime, repeatFrequency)
+        : [dateTime];
+      const recurrenceId = repeat ? crypto.randomUUID() : undefined;
+      const newAppointments: Appointment[] = [];
 
-      if (!available) {
-        setError(
-          'Η ώρα μόλις κλείστηκε από άλλον χρήστη. Επιλέξτε άλλη διαθέσιμη ώρα.'
+      for (const occurrenceDate of repeatDates) {
+        const availableTimesForDate = availableTimes(
+          occurrenceDate,
+          service.duration,
+          [...slots, ...newAppointments.map((appointment) => ({
+            id: appointment.id,
+            startAt: appointment.dateTime,
+            endAt: new Date(appointment.dateTime.getTime() + appointment.durationMinutes * 60000),
+          }))],
+          [...appointments, ...newAppointments],
+          isAdmin
         );
-        return;
+        const occurrenceTime = availableTimesForDate.some(
+          (slot) => slot.h === occurrenceDate.getHours() && slot.m === occurrenceDate.getMinutes()
+        );
+
+        if (!occurrenceTime) {
+          setError(
+            'Δεν είναι διαθέσιμη η ίδια ώρα σε όλες τις επαναλήψεις. Επιλέξτε άλλη ώρα ή απενεργοποιήστε την επανάληψη.'
+          );
+          return;
+        }
+
+        if (!(await slotAvailable(occurrenceDate, service.duration))) {
+          setError(
+            'Μία από τις επαναλαμβανόμενες ώρες μόλις κλείστηκε από άλλον χρήστη. Επιλέξτε άλλη ώρα.'
+          );
+          return;
+        }
+
+        newAppointments.push({
+          id: `${Date.now()}-${newAppointments.length}`,
+          clientName: client.trim(),
+          ownerUid: isAdmin
+            ? userUid ?? null
+            : auth.currentUser?.uid ?? null,
+          service: service.name,
+          dateTime: occurrenceDate,
+          price: service.price,
+          durationMinutes: service.duration,
+          status: 'upcoming',
+          recurrenceId,
+        });
       }
 
-      const appointment: Appointment = {
-        id: Date.now().toString(),
-        clientName: client.trim(),
-        ownerUid: isAdmin
-          ? userUid ?? null
-          : auth.currentUser?.uid ?? null,
-        service: service.name,
-        dateTime,
-        price: service.price,
-        durationMinutes: service.duration,
-        status: 'upcoming',
-      };
+      await saveAppointments(newAppointments);
 
-      await saveAppointments([appointment]);
-
-      onSaved(appointment);
+      newAppointments.forEach(onSaved);
       onClose();
     } catch (error) {
       console.error('Appointment creation failed:', error);
@@ -245,9 +312,33 @@ export default function AppointmentModal({
 
         <section className="appointment-date-picker">
           <span>Ημερομηνία ραντεβού</span>
-          <Calendar value={selectedDate} onChange={setSelectedDate} />
+          <Calendar value={selectedDate} onChange={setSelectedDate} allowPast={isAdmin} />
           <strong>{selectedDate.toLocaleDateString('el-GR',{weekday:'long',day:'numeric',month:'long'})}</strong>
         </section>
+
+        <div className="recurrence-control">
+          <label>
+            <input
+              type="checkbox"
+              checked={repeat}
+              onChange={(event) => setRepeat(event.target.checked)}
+            />
+            <span>Επαναλαμβανόμενο ραντεβού</span>
+          </label>
+          {repeat && (
+            <>
+              <Dropdown
+                value={repeatFrequency}
+                onChange={(value) => setRepeatFrequency(value as RepeatFrequency)}
+                options={[
+                  { value: 'weekly', label: 'Κάθε εβδομάδα, την ίδια ημέρα' },
+                  { value: 'monthly', label: 'Κάθε μήνα' },
+                ]}
+              />
+              <small>Η επανάληψη θα διαρκέσει έως 1 χρόνο.</small>
+            </>
+          )}
+        </div>
 
         <label>
           Διαθέσιμη ώρα

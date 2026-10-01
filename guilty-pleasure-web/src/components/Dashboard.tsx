@@ -1,6 +1,6 @@
 import {useEffect,useState} from 'react';
 import {CalendarDays,Clock3,Edit3,History,LogOut,UserRound,Plus,Scissors,Euro,ChevronRight,UsersRoundIcon,XCircle} from 'lucide-react';
-import {auth,deleteAppointment,loadAppointments,loadSlots} from '../lib/api';
+import {auth,cancelAppointments,loadAppointments,loadSlots} from '../lib/api';
 import {SERVICES} from '../lib/services';
 import type {Appointment,BookedSlot} from '../types';
 import Calendar from './Calendar';
@@ -8,6 +8,8 @@ import AppointmentModal from './AppointmentModal';
 import Modal from './Modal';
 import {EditAppointment} from './History';
 import {adminCancellationEmail,cancellationEmail} from '../lib/email';
+import {seriesCancellationEmail} from '../lib/email';
+import CancelAppointmentModal from './CancelAppointmentModal';
 
 function dayEq(a:Date,b:Date){return a.toDateString()===b.toDateString();}
 function money(amount:number){return `${amount.toFixed(2)} €`;}
@@ -27,6 +29,7 @@ export default function Dashboard({isAdmin,username,onLogout,onProfile,onAccount
   const [slots,setSlots]=useState<BookedSlot[]>([]);
   const [showNew,setShowNew]=useState(false);
   const [selectedAppointment,setSelectedAppointment]=useState<Appointment|null>(null);
+  const [cancellingAppointment,setCancellingAppointment]=useState<Appointment|null>(null);
   const [editingAppointment,setEditingAppointment]=useState<Appointment|null>(null);
 
   const refresh=async()=>{
@@ -41,7 +44,7 @@ export default function Dashboard({isAdmin,username,onLogout,onProfile,onAccount
   useEffect(()=>{refresh();},[]);
 
   const dayAppointments=appointments
-    .filter(appointment=>dayEq(appointment.dateTime,selected)&&(isAdmin||appointment.ownerUid===auth.currentUser?.uid))
+    .filter(appointment=>appointment.status!=='cancelled'&&dayEq(appointment.dateTime,selected)&&(isAdmin||appointment.ownerUid===auth.currentUser?.uid))
     .sort((a,b)=>a.dateTime.getTime()-b.dateTime.getTime());
   const revenue=(items:Appointment[])=>items.filter(appointment=>appointment.status!=='cancelled').reduce((total,appointment)=>total+appointment.price,0);
   const today=revenue(appointments.filter(appointment=>dayEq(appointment.dateTime,new Date())));
@@ -56,12 +59,15 @@ export default function Dashboard({isAdmin,username,onLogout,onProfile,onAccount
     setSlots(items=>[...items,{id:appointment.id,startAt:appointment.dateTime,endAt:new Date(appointment.dateTime.getTime()+appointment.durationMinutes*60000)}]);
   };
 
-  const cancelAppointment=async(appointment:Appointment)=>{
+  const cancelAppointment=async(ids:string[])=>{
+    const targets=appointments.filter(appointment=>ids.includes(appointment.id)&&appointment.status!=='cancelled');
     try{
-      if(isAdmin)await cancellationEmail('',appointment.clientName,appointment,true);
-      else await adminCancellationEmail(appointment);
+      if(targets.length>1&&targets[0]?.recurrenceId)await seriesCancellationEmail(ids,isAdmin);
+      else if(targets[0]&&isAdmin)await cancellationEmail('',targets[0].clientName,targets[0],true);
+      else if(targets[0])await adminCancellationEmail(targets[0]);
     }catch{}
-    await deleteAppointment(appointment.id);
+    await cancelAppointments(ids);
+    setCancellingAppointment(null);
     setSelectedAppointment(null);
     await refresh();
   };
@@ -96,7 +102,7 @@ export default function Dashboard({isAdmin,username,onLogout,onProfile,onAccount
       {isAdmin&&<div className="tomorrow"><CalendarDays/><span>Αυριανό πρόγραμμα</span><strong>{tomorrowCount} ραντεβού αύριο</strong></div>}
 
       <div className="dashboard-grid">
-        <section className="panel calendar-panel"><Calendar value={selected} onChange={setSelected}/></section>
+        <section className="panel calendar-panel"><Calendar value={selected} onChange={setSelected} allowPast={isAdmin}/></section>
         <section className="panel day-panel">
           <div className="section-title">
             <div><span className="eyebrow">ΕΠΙΛΕΓΜΕΝΗ ΗΜΕΡΑ</span><h2>{selected.toLocaleDateString('el-GR',{day:'numeric',month:'long',year:'numeric'})}</h2></div>
@@ -112,7 +118,8 @@ export default function Dashboard({isAdmin,username,onLogout,onProfile,onAccount
     </main>
 
     {showNew&&<AppointmentModal date={selected} isAdmin={isAdmin} username={username} appointments={appointments} slots={slots} onClose={()=>setShowNew(false)} onSaved={add}/>} 
-    {selectedAppointment&&<Modal title="Διαχείριση ραντεβού" onClose={()=>setSelectedAppointment(null)}><div className="appointment-actions"><div><span className="service-badge" style={{background:serviceColor(selectedAppointment.service)}}>{selectedAppointment.service}</span><h3>{selectedAppointment.clientName}</h3><p>{selectedAppointment.dateTime.toLocaleDateString('el-GR',{weekday:'long',day:'numeric',month:'long'})} · {selectedAppointment.dateTime.toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'})}</p></div><button className="secondary" onClick={()=>{setEditingAppointment(selectedAppointment);setSelectedAppointment(null);}}><Edit3/> Αλλαγή ραντεβού</button><button className="danger-outline" onClick={()=>cancelAppointment(selectedAppointment)}><XCircle/> Ακύρωση ραντεβού</button></div></Modal>}
+    {selectedAppointment&&<Modal title="Διαχείριση ραντεβού" onClose={()=>setSelectedAppointment(null)}><div className="appointment-actions"><div><span className="service-badge" style={{background:serviceColor(selectedAppointment.service)}}>{selectedAppointment.service}</span><h3>{selectedAppointment.clientName}</h3><p>{selectedAppointment.dateTime.toLocaleDateString('el-GR',{weekday:'long',day:'numeric',month:'long'})} · {selectedAppointment.dateTime.toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'})}</p></div><button className="secondary" onClick={()=>{setEditingAppointment(selectedAppointment);setSelectedAppointment(null);}}><Edit3/> Αλλαγή ραντεβού</button><button className="danger-outline" onClick={()=>{setCancellingAppointment(selectedAppointment);setSelectedAppointment(null);}}><XCircle/> Ακύρωση ραντεβού</button></div></Modal>}
+    {cancellingAppointment&&<CancelAppointmentModal appointment={cancellingAppointment} seriesAppointments={appointments.filter(appointment=>appointment.recurrenceId===cancellingAppointment.recurrenceId)} onClose={()=>setCancellingAppointment(null)} onConfirm={cancelAppointment}/>}
     {editingAppointment&&<EditAppointment appointment={editingAppointment} appointments={appointments} slots={slots} isAdmin={isAdmin} onClose={()=>setEditingAppointment(null)} onSaved={async()=>{setEditingAppointment(null);await refresh();}}/>}
   </div>;
 }

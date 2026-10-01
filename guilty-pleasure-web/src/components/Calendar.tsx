@@ -26,9 +26,11 @@ function isBeforeToday(date: Date) {
 export default function Calendar({
   value,
   onChange,
+  allowPast = false,
 }: {
   value: Date;
   onChange: (date: Date) => void;
+  allowPast?: boolean;
 }) {
   const [month, setMonth] = useState(
     new Date(
@@ -82,7 +84,7 @@ export default function Calendar({
       1
     );
 
-    if (previous < currentMonth) return;
+    if (!allowPast && previous < currentMonth) return;
 
     setMonth(previous);
   };
@@ -116,7 +118,7 @@ export default function Calendar({
     );
 
     const isSunday = date.getDay() === 0;
-    const disabled = isBeforeToday(date) || isSunday;
+    const disabled = (!allowPast && isBeforeToday(date)) || isSunday;
 
     cells.push(
       <button
@@ -169,7 +171,7 @@ export default function Calendar({
       <div className="cal-head">
         <button
           type="button"
-          disabled={isCurrentMonth}
+          disabled={!allowPast && isCurrentMonth}
           onClick={previousMonth}
           aria-label="Προηγούμενος μήνας"
         >

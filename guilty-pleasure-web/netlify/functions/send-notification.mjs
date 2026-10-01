@@ -47,16 +47,57 @@ export async function handler(event){
 
     const app=adminApp();
     const decoded=await getAuth(app).verifyIdToken(token);
-    const {action,appointmentId}=JSON.parse(event.body||'{}');
+    const {action,appointmentId,appointmentIds}=JSON.parse(event.body||'{}');
     if(!['admin-rescheduled','admin-cancelled','user-cancelled'].includes(action)||typeof appointmentId!=='string'){
-      return json(400,{error:'Invalid notification request.'});
+      if(!Array.isArray(appointmentIds)||!appointmentIds.length||appointmentIds.length>100||appointmentIds.some(id=>typeof id!=='string')||new Set(appointmentIds).size!==appointmentIds.length||!['admin-cancelled','user-cancelled'].includes(action)){
+        return json(400,{error:'Invalid notification request.'});
+      }
     }
 
     const db=getFirestore(app);
+    const isAdmin=decoded.email?.toLowerCase()===adminEmail;
+
+    if(Array.isArray(appointmentIds)){
+      if(action==='admin-cancelled'&&!isAdmin)return json(403,{error:'Not allowed.'});
+      const snapshots=await Promise.all(appointmentIds.map(id=>db.collection('appointments').doc(id).get()));
+      if(snapshots.some(snapshot=>!snapshot.exists))return json(404,{error:'Appointment not found.'});
+      const appointments=snapshots.map(snapshot=>snapshot.data());
+      const ownerUids=new Set(appointments.map(appointment=>appointment.ownerUid||''));
+      const recurrenceIds=new Set(appointments.map(appointment=>appointment.recurrenceId||''));
+      if(ownerUids.size!==1||recurrenceIds.size!==1||recurrenceIds.has(''))return json(400,{error:'Appointments must belong to one recurring series.'});
+      const firstAppointment=appointments.sort((a,b)=>new Date(a.dateTime)-new Date(b.dateTime))[0];
+
+      if(action==='user-cancelled'){
+        if(appointments.some(appointment=>appointment.ownerUid!==decoded.uid))return json(403,{error:'Not allowed.'});
+        await sendEmail({
+          email:adminEmail,
+          to_name:'Admin',
+          notification_title:'Ακύρωση επαναλαμβανόμενων ραντεβού',
+          notification_message:`Ο πελάτης ${firstAppointment.clientName} ακύρωσε ${appointments.length} επαναλαμβανόμενα ραντεβού.`,
+          client_name:String(firstAppointment.clientName||''),
+          ...appointmentText(firstAppointment),
+        });
+        return json(200,{ok:true});
+      }
+
+      if(!firstAppointment.ownerUid)return json(200,{ok:true,skipped:true});
+      const profile=await db.collection('users').doc(firstAppointment.ownerUid).get();
+      const recipient=String(profile.data()?.email||'').trim().toLowerCase();
+      if(!recipient)return json(200,{ok:true,skipped:true});
+      await sendEmail({
+        email:recipient,
+        to_name:String(firstAppointment.clientName||''),
+        notification_title:'Ακύρωση επαναλαμβανόμενων ραντεβού',
+        notification_message:`Ακυρώθηκαν ${appointments.length} μελλοντικά επαναλαμβανόμενα ραντεβού σας.`,
+        client_name:String(firstAppointment.clientName||''),
+        ...appointmentText(firstAppointment),
+      });
+      return json(200,{ok:true});
+    }
+
     const appointmentDoc=await db.collection('appointments').doc(appointmentId).get();
     if(!appointmentDoc.exists)return json(404,{error:'Appointment not found.'});
     const appointment=appointmentDoc.data();
-    const isAdmin=decoded.email?.toLowerCase()===adminEmail;
     const ownsAppointment=appointment.ownerUid===decoded.uid;
 
     if((action.startsWith('admin-')&&!isAdmin)||(action==='user-cancelled'&&!ownsAppointment)){

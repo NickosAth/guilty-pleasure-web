@@ -464,39 +464,7 @@ export async function loadAppointments(
       appointmentsQuery
     );
 
-  /*
-   * Remove cancelled appointments
-   * from Firestore, preserving the
-   * original application behaviour.
-   */
-  const cancelled =
-    snap.docs.filter(
-      (document) =>
-        document.data().status ===
-        'cancelled'
-    );
-
-  if (cancelled.length) {
-    const batch =
-      writeBatch(db);
-
-    cancelled.forEach(
-      (document) => {
-        batch.delete(
-          document.ref
-        );
-      }
-    );
-
-    await batch.commit();
-  }
-
   return snap.docs
-    .filter(
-      (document) =>
-        document.data().status !==
-        'cancelled'
-    )
     .map(
       (document) =>
         fromAppointment(
@@ -567,6 +535,11 @@ function fromAppointment(
       getAppointmentStatus(
         data.status
       ),
+
+    recurrenceId:
+      typeof data.recurrenceId === 'string'
+        ? data.recurrenceId
+        : undefined,
   };
 }
 
@@ -696,6 +669,9 @@ export async function saveAppointments(
 
           status:
             appointment.status,
+
+          recurrenceId:
+            appointment.recurrenceId ?? null,
         }
       );
 
@@ -716,6 +692,26 @@ export async function saveAppointments(
       );
     }
   );
+
+  await batch.commit();
+}
+
+export async function cancelAppointments(
+  ids: string[]
+) {
+  if (!ids.length) return;
+
+  const batch = writeBatch(db);
+
+  ids.forEach((id) => {
+    batch.update(
+      doc(db, 'appointments', id),
+      { status: 'cancelled' }
+    );
+    batch.delete(
+      doc(db, 'appointmentSlots', id)
+    );
+  });
 
   await batch.commit();
 }

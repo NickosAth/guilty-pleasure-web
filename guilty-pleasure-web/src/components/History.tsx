@@ -1,17 +1,19 @@
 import {useEffect,useState} from 'react';
 import {CalendarClock,Edit3,Trash2,XCircle} from 'lucide-react';
-import {auth,deleteAppointment,loadAppointments,loadSlots,saveAppointments} from '../lib/api';
+import {auth,cancelAppointments,loadAppointments,loadSlots,saveAppointments} from '../lib/api';
 import {SERVICES,availableTimes} from '../lib/services';
 import type {Appointment,BookedSlot} from '../types';
 import Modal from './Modal';
 import Calendar from './Calendar';
 import Dropdown from './Dropdown';
-import {adminCancellationEmail,cancellationEmail,rescheduledEmail} from '../lib/email';
+import {adminCancellationEmail,cancellationEmail,rescheduledEmail,seriesCancellationEmail} from '../lib/email';
+import CancelAppointmentModal from './CancelAppointmentModal';
 
 export default function History({isAdmin,onClose,onChanged}:{isAdmin:boolean;onClose:()=>void;onChanged:()=>void}){
   const [items,setItems]=useState<Appointment[]>([]);
   const [slots,setSlots]=useState<BookedSlot[]>([]);
   const [edit,setEdit]=useState<Appointment|null>(null);
+  const [cancelling,setCancelling]=useState<Appointment|null>(null);
   const refresh=async()=>{
     const [appointments,bookedSlots]=await Promise.all([loadAppointments(isAdmin?null:auth.currentUser?.uid),loadSlots()]);
     setItems(appointments);
@@ -20,13 +22,15 @@ export default function History({isAdmin,onClose,onChanged}:{isAdmin:boolean;onC
 
   useEffect(()=>{refresh()},[]);
 
-  const cancel=async(appointment:Appointment)=>{
-    if(!confirm('Θέλετε σίγουρα να ακυρώσετε αυτό το ραντεβού;'))return;
+  const cancel=async(ids:string[])=>{
+    const targets=items.filter(appointment=>ids.includes(appointment.id)&&appointment.status!=='cancelled');
     try{
-      if(isAdmin)await cancellationEmail('',appointment.clientName,appointment,true);
-      if(!isAdmin)await adminCancellationEmail(appointment);
+      if(targets.length>1&&targets[0]?.recurrenceId)await seriesCancellationEmail(ids,isAdmin);
+      else if(targets[0]&&isAdmin)await cancellationEmail('',targets[0].clientName,targets[0],true);
+      else if(targets[0])await adminCancellationEmail(targets[0]);
     }catch{}
-    await deleteAppointment(appointment.id);
+    await cancelAppointments(ids);
+    setCancelling(null);
     await refresh();
     onChanged();
   };
@@ -34,23 +38,25 @@ export default function History({isAdmin,onClose,onChanged}:{isAdmin:boolean;onC
   return <Modal title={isAdmin?'Όλα τα Ραντεβού':'Τα ραντεβού μου'} onClose={onClose} wide>
     <div className="history-list">
       {items.length ? items.map((appointment)=>{
-        const canModify=appointment.dateTime>new Date();
+        const canModify=isAdmin||appointment.dateTime>new Date();
         return <div className="history-card" key={appointment.id}>
           <div className="history-info">
             <strong>{appointment.clientName}</strong>
             <span className="service-badge" style={{background:SERVICES.find(service=>service.name===appointment.service)?.color||'#777'}}>{appointment.service}</span>
+            {appointment.status==='cancelled'&&<span className="cancelled-status">Ακυρωμένο</span>}
             <small>{appointment.dateTime.toLocaleDateString('el-GR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · {appointment.dateTime.toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'})} ({appointment.durationMinutes} λ)</small>
           </div>
           <div className="history-right">
             <strong>{appointment.price.toFixed(2)} €</strong>
-            {canModify ? <div>
+            {appointment.status==='cancelled' ? null : canModify ? <div>
               <button title="Αλλαγή ώρας" onClick={()=>setEdit(appointment)}><Edit3/></button>
-              <button className="red" title="Ακύρωση" onClick={()=>cancel(appointment)}><XCircle/></button>
-            </div> : <button className="red" title="Διαγραφή από το ιστορικό" onClick={()=>cancel(appointment)}><Trash2/></button>}
+              <button className="red" title="Ακύρωση" onClick={()=>setCancelling(appointment)}><XCircle/></button>
+            </div> : <button className="red" title="Ακύρωση από το ιστορικό" onClick={()=>setCancelling(appointment)}><Trash2/></button>}
           </div>
         </div>;
       }) : <div className="empty"><CalendarClock/><p>{isAdmin?'Δεν βρέθηκαν ραντεβού.':'Δεν έχετε ιστορικό ραντεβού.'}</p></div>}
     </div>
+    {cancelling&&<CancelAppointmentModal appointment={cancelling} seriesAppointments={items.filter(appointment=>appointment.recurrenceId===cancelling.recurrenceId)} onClose={()=>setCancelling(null)} onConfirm={cancel}/>}
     {edit&&<EditAppointment appointment={edit} appointments={items} slots={slots} isAdmin={isAdmin} onClose={()=>setEdit(null)} onSaved={async()=>{setEdit(null);await refresh();onChanged()}}/>}
   </Modal>;
 }
@@ -86,7 +92,7 @@ export function EditAppointment({
     appointment.durationMinutes,
     slots,
     appointments,
-    false,
+    isAdmin,
     appointment.id
   );
 
@@ -99,7 +105,7 @@ export function EditAppointment({
       appointment.durationMinutes,
       slots,
       appointments,
-      false,
+      isAdmin,
       appointment.id
     );
 
@@ -189,6 +195,7 @@ export function EditAppointment({
           <Calendar
             value={date}
             onChange={changeDate}
+            allowPast={isAdmin}
           />
 
           <div className="reschedule-date-preview">
