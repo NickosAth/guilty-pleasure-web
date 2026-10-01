@@ -47,9 +47,11 @@ export default function Dashboard({isAdmin,username,onLogout,onProfile,onAccount
     .filter(appointment=>appointment.status!=='cancelled'&&dayEq(appointment.dateTime,selected)&&(isAdmin||appointment.ownerUid===auth.currentUser?.uid))
     .sort((a,b)=>a.dateTime.getTime()-b.dateTime.getTime());
   const revenue=(items:Appointment[])=>items.filter(appointment=>appointment.status!=='cancelled').reduce((total,appointment)=>total+appointment.price,0);
-  const today=revenue(appointments.filter(appointment=>dayEq(appointment.dateTime,new Date())));
-  const month=revenue(appointments.filter(appointment=>appointment.dateTime.getMonth()===new Date().getMonth()&&appointment.dateTime.getFullYear()===new Date().getFullYear()));
-  const year=revenue(appointments.filter(appointment=>appointment.dateTime.getFullYear()===new Date().getFullYear()));
+   const selectedDayRevenue=revenue(dayAppointments);
+   const selectedMonthRevenue=revenue(appointments.filter(appointment=>appointment.dateTime.getMonth()===selected.getMonth()&&appointment.dateTime.getFullYear()===selected.getFullYear()));
+   const selectedYearRevenue=revenue(appointments.filter(appointment=>appointment.dateTime.getFullYear()===selected.getFullYear()));
+   const selectedDayLabel=selected.toLocaleDateString('el-GR',{day:'numeric',month:'long'});
+   const selectedMonthLabel=selected.toLocaleDateString('el-GR',{month:'long',year:'numeric'});
   const tomorrow=new Date(Date.now()+86400000);
   const tomorrowCount=appointments.filter(appointment=>dayEq(appointment.dateTime,tomorrow)&&appointment.status!=='cancelled').length;
   const serviceColor=(name:string)=>SERVICES.find(service=>service.name===name)?.color||'#777';
@@ -67,6 +69,9 @@ export default function Dashboard({isAdmin,username,onLogout,onProfile,onAccount
       else if(targets[0])await adminCancellationEmail(targets[0]);
     }catch{}
     await cancelAppointments(ids);
+    const cancelledIds=new Set(ids);
+    setAppointments(items=>items.map(appointment=>cancelledIds.has(appointment.id)?{...appointment,status:'cancelled'}:appointment));
+    setSlots(items=>items.filter(slot=>!cancelledIds.has(slot.id)));
     setCancellingAppointment(null);
     setSelectedAppointment(null);
     await refresh();
@@ -112,7 +117,7 @@ export default function Dashboard({isAdmin,username,onLogout,onProfile,onAccount
         </section>
       </div>
 
-      {isAdmin&&<section className="stats"><div><div><CalendarDays/><span>Σημερινός Τζίρος</span></div><strong>{money(today)}</strong></div><div><div><Euro/><span>Τρέχων Μήνας</span></div><strong>{money(month)}</strong></div><div><div><ChevronRight/><span>Τρέχον Έτος</span></div><strong>{money(year)}</strong></div></section>}
+      {isAdmin&&<section className="stats"><div><div><CalendarDays/><span>Τζίρος {selectedDayLabel}</span></div><strong>{money(selectedDayRevenue)}</strong></div><div><div><Euro/><span>Τζίρος {selectedMonthLabel}</span></div><strong>{money(selectedMonthRevenue)}</strong></div><div><div><ChevronRight/><span>Τζίρος {selected.getFullYear()}</span></div><strong>{money(selectedYearRevenue)}</strong></div></section>}
 
       <section className="service-strip"><span>Υπηρεσίες</span>{SERVICES.map(service=><div key={service.name}><i style={{background:service.color}}/><span>{service.name}</span><strong>{service.price}€</strong></div>)}</section>
     </main>
