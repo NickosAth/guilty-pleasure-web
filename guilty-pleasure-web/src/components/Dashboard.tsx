@@ -117,7 +117,7 @@ export default function Dashboard({isAdmin,username,onLogout,onProfile,onAccount
         </section>
       </div>
 
-      {isAdmin&&<section className="stats"><div><div><CalendarDays/><span>Τζίρος {selectedDayLabel}</span></div><strong>{money(selectedDayRevenue)}</strong></div><div><div><Euro/><span>Τζίρος {selectedMonthLabel}</span></div><strong>{money(selectedMonthRevenue)}</strong></div><div><div><ChevronRight/><span>Τζίρος {selected.getFullYear()}</span></div><strong>{money(selectedYearRevenue)}</strong></div></section>}
+      {isAdmin&&<section className="stats"><div><div><CalendarDays/><span>Ημερήσιος Τζίρος</span></div><strong>{money(selectedDayRevenue)}</strong></div><div><div><Euro/><span>Τζίρος {selectedMonthLabel}</span></div><strong>{money(selectedMonthRevenue)}</strong></div><div><div><ChevronRight/><span>Τζίρος {selected.getFullYear()}</span></div><strong>{money(selectedYearRevenue)}</strong></div></section>}
 
       <section className="service-strip"><span>Υπηρεσίες</span>{SERVICES.map(service=><div key={service.name}><i style={{background:service.color}}/><span>{service.name}</span><strong>{service.price}€</strong></div>)}</section>
     </main>
